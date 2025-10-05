@@ -1,0 +1,48 @@
+name: ISS Data CI with Cache
+
+on:
+  workflow_dispatch: # allows manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        id: dependency-cache
+        with:
+          path: ~/.cache/pip
+          key: cache-66e41c0
+
+      - name: Echo cache result
+        run: |
+          if [ "${{ steps.dependency-cache.outputs.cache-hit }}" == "true" ]; then
+            echo "Cache was hit!"
+          else
+            echo "Cache was missed."
+          fi
+
+      - name: Install dependencies
+        run: |
+          pip install requests uvicorn
+
+      - name: Fetch ISS location data
+        run: |
+          uv run --with requests python << 'EOF'
+          import requests
+          data = requests.get('http://api.open-notify.org/iss-now.json').text
+          with open('iss-location.jsonl', 'a') as f:
+              f.write(data + '\n')
+          'EOF'
+
+      - name: Commit and push updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add iss-location.jsonl
+          git commit -m "Update ISS data [skip ci]" || exit 0
+          git push
