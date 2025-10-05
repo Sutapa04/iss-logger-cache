@@ -1,11 +1,15 @@
 name: ISS Data CI with Cache
 
 on:
-  workflow_dispatch: # allows manual triggering
+  workflow_dispatch: # Allows manual triggering
+  schedule:
+    - cron: "0 12 * * *" # Daily at 12:00 UTC
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -39,10 +43,17 @@ jobs:
               f.write(data + '\n')
           'EOF'
 
-      - name: Commit and push updates
+      - name: Commit and push updates if any
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add iss-location.jsonl
-          git commit -m "Update ISS data [skip ci]" || exit 0
-          git push
+          if git diff-index --quiet HEAD; then
+              echo "No changes to commit."
+          else
+              git commit -m "Update ISS data [skip ci]"
+              git push
+          fi
+
+      - name: 22f3000515@ds.study.iitm.ac.in
+        run: echo "Hello, world!"
